@@ -44,7 +44,7 @@ psram:
   speed: 80MHz
 
 external_components:
-  - source: https://github.com/rhasspy/voice-kit-fpc
+  - source: github://rhasspy/voicekit-fpc
     components: [i2s_audio, micro_wake_word]
     refresh: 0s
 
