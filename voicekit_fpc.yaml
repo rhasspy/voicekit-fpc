@@ -1,0 +1,127 @@
+esphome:
+  name: esphome-voice-kit-fpc
+  friendly_name: VoiceKit False Positive Collector
+  name_add_mac_suffix: true
+  platformio_options:
+    board_build.flash_mode: dio
+  project:
+    name: esphome.voice-kit-fpc
+    version: "1.0"
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+    version: recommended
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+      CONFIG_ESP32_S3_BOX_BOARD: "y"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  on_connect:
+    - micro_wake_word.start:
+
+logger:
+  level: DEBUG
+  logs:
+    sensor: WARN  # avoids logging debug sensor updates
+
+api:
+
+ota:
+  - platform: esphome
+
+improv_serial:
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+external_components:
+  - source: https://github.com/rhasspy/voice-kit-fpc
+    components: [i2s_audio, micro_wake_word]
+    refresh: 0s
+
+i2s_audio:
+  - id: i2s_input
+    i2s_lrclk_pin:
+      number: GPIO7
+    i2s_bclk_pin:
+      number: GPIO8
+    i2s_mclk_pin:
+      number: GPIO9
+    i2s_mode: secondary
+
+microphone:
+  - platform: i2s_audio
+    id: kit_mic
+    i2s_din_pin: GPIO11
+    adc_type: external
+    pdm: false
+    bits_per_sample: 32bit
+    channel: left
+    i2s_audio_id: i2s_input
+
+micro_wake_word:
+  models:
+    - model: okay_nabu
+  upload_host: "<HA IP ADDRESS>"
+  upload_port: 11223
+  on_wake_word_detected:
+    - light.turn_on:
+        brightness: 100%
+        id: voice_assistant_leds
+        effect: "Rainbow"
+  on_audio_uploaded:
+    - delay: 1s
+    - light.turn_off:
+        id: voice_assistant_leds
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: leds_internal
+    pin: GPIO21
+    rmt_channel: 1
+    num_leds: 12
+    rgb_order: GRB
+    chipset: WS2812
+    default_transition_length: 0ms
+    power_supply: led_power
+  - platform: partition
+    id: voice_assistant_leds
+    internal: true
+    default_transition_length: 0ms
+    segments:
+      - id: leds_internal
+        from: 7
+        to: 11
+      - id: leds_internal
+        from: 0
+        to: 6
+    effects:
+      - addressable_rainbow:
+          name: "Rainbow"
+          width: 12
+
+  - platform: partition
+    id: led_ring
+    name: LED Ring
+    default_transition_length: 0ms
+    restore_mode: RESTORE_DEFAULT_OFF
+    segments:
+      - id: leds_internal
+        from: 7
+        to: 11
+      - id: leds_internal
+        from: 0
+        to: 6
+
+power_supply:
+  - id: led_power
+    pin: GPIO45
